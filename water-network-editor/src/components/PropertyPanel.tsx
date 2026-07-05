@@ -34,7 +34,15 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
   const isEditor = currentUser?.role === 'Editor';
   const canEdit = isEditor && (!activeEdit || activeEdit.state === 'Draft' || activeEdit.state === 'Rejected');
 
+  // Determine why editing is locked so we can show a clear message
+  const lockReason =
+    !isEditor ? null // non-editors don't see this panel in edit mode
+    : activeEdit?.state === 'Pending Approval' ? 'This edit is pending Admin approval. You cannot modify it until approved or rejected.'
+    : activeEdit?.state === 'Assigned' ? 'This edit is assigned to an Operator for field verification. Await their submission.'
+    : null;
+
   const onSave = (data: any) => {
+    if (!currentUser) return; // guard: should never happen
     // Merge form data INTO existing properties so that fields not shown in the
     // form (e.g. startJunction, endJunction, material) are NOT silently dropped.
     const mergedProperties = { ...element.properties, ...data };
@@ -174,8 +182,22 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
         </Typography>
         
         {activeEdit && (
-          <Paper sx={{ p: 1, mb: 2, bgcolor: 'warning.light' }}>
+          <Paper sx={{
+            p: 1, mb: 2,
+            bgcolor:
+              activeEdit.state === 'Pending Approval' ? 'info.light'
+              : activeEdit.state === 'Assigned' ? 'warning.light'
+              : activeEdit.state === 'Rejected' ? 'error.light'
+              : 'success.light'
+          }}>
             <Typography variant="body2" fontWeight="bold">Active Edit: {activeEdit.state}</Typography>
+          </Paper>
+        )}
+
+        {/* Show why editing is locked */}
+        {lockReason && (
+          <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'grey.100', border: '1px solid', borderColor: 'warning.main' }}>
+            <Typography variant="body2" color="warning.dark">🔒 {lockReason}</Typography>
           </Paper>
         )}
 

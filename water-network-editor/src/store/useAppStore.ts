@@ -176,7 +176,8 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'water-network-storage'
+      name: 'water-network-storage',
+      version: 1, // Bump this when schema changes to wipe stale localStorage
     }
   )
 );
