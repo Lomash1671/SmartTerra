@@ -62,7 +62,10 @@ const ApprovalPanel = () => {
                         if (beforeVal !== afterVal) {
                           return (
                             <Typography key={key} variant="caption" display="block">
-                              <strong>{key}:</strong> <span style={{ textDecoration: 'line-through', color: '#d32f2f' }}>{beforeVal || 'None'}</span> <span>&rarr;</span> <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>{afterVal}</span>
+                              <strong>{key}:</strong>{' '}
+                              <span style={{ textDecoration: 'line-through', color: '#d32f2f' }}>{beforeVal ?? 'None'}</span>
+                              {' → '}
+                              <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>{afterVal ?? 'None'}</span>
                             </Typography>
                           );
                         }

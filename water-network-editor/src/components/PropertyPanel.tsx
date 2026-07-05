@@ -131,8 +131,16 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
   };
 
   const handleSplitPipeAction = () => {
+    // Compute actual midpoint of the pipe in [lat, lng] format (how the store saves coords)
+    const pipeCoords = element.coordinates as number[][];
+    const startCoord = pipeCoords[0];
+    const endCoord = pipeCoords[pipeCoords.length - 1];
+    const newJunctionCoords: [number, number] = [
+      (startCoord[0] + endCoord[0]) / 2,
+      (startCoord[1] + endCoord[1]) / 2,
+    ];
+
     const newJunctionId = `J-${Date.now()}`;
-    const newJunctionCoords = [-0.085, 51.5075];
     const newJunctionEdit = {
       elementId: newJunctionId,
       state: 'Draft' as const,
