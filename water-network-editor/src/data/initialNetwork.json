@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "J1",
+        "type": "Junction",
+        "elevation": 100
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.09, 51.505]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "J2",
+        "type": "Junction",
+        "elevation": 105
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.08, 51.51]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1",
+        "type": "Pipe",
+        "diameter": 150,
+        "material": "PVC",
+        "startJunction": "J1",
+        "endJunction": "J2"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-0.09, 51.505],
+          [-0.08, 51.51]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R1",
+        "type": "Reservoir",
+        "head": 150
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-0.1, 51.5]
+      }
+    }
+  ]
+}
