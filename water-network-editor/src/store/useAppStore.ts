@@ -82,43 +82,46 @@ export const useAppStore = create<AppState>()(
         get().logAction('CREATE_EDIT', `Created edit for ${editData.elementId || 'new element'}`, id);
       },
       updateEdit: (editId, update, customLog) => {
-        set((state) => {
-          const edit = state.edits[editId];
-          if (!edit) return state;
-          
-          if (update.state && update.state !== edit.state) {
-            if (customLog) {
-              get().logAction(customLog.action, customLog.description, editId);
-            } else {
-              get().logAction('STATE_CHANGE', `State changed to ${update.state}`, editId);
-            }
-            
-            // If Approved, apply to Network
-            if (update.state === 'Approved') {
-              const newNetwork = { ...state.networkCache };
-              
-              if (edit.after && edit.after.id) {
-                newNetwork[edit.after.id] = edit.after;
-              } else if (edit.elementId && edit.after === null) {
-                // Delete
-                delete newNetwork[edit.elementId];
-              }
-              
-              set({ networkCache: newNetwork });
-              get().logAction('PUBLISH_EDIT', `Edit changes applied to network layer.`, editId);
-            }
+        // Use get() to read current state so we can compute the full next state
+        // atomically in a single set() call. Previously, calling set() inside
+        // set() caused the outer return to overwrite the networkCache changes.
+        const state = get();
+        const edit = state.edits[editId];
+        if (!edit) return;
+
+        const stateChanging = !!(update.state && update.state !== edit.state);
+
+        if (stateChanging) {
+          if (customLog) {
+            state.logAction(customLog.action, customLog.description, editId);
+          } else {
+            state.logAction('STATE_CHANGE', `State changed to ${update.state}`, editId);
           }
-          
-          return {
-            edits: {
-              ...state.edits,
-              [editId]: {
-                ...edit,
-                ...update,
-                updatedAt: new Date().toISOString()
-              }
-            }
-          };
+        }
+
+        // Compute new networkCache atomically (only when approving)
+        let newNetworkCache = state.networkCache;
+        if (update.state === 'Approved') {
+          newNetworkCache = { ...state.networkCache };
+          if (edit.after && edit.after.id) {
+            newNetworkCache[edit.after.id] = edit.after;
+          } else if (edit.elementId && edit.after === null) {
+            delete newNetworkCache[edit.elementId];
+          }
+          state.logAction('PUBLISH_EDIT', 'Edit changes applied to published network.', editId);
+        }
+
+        // Single atomic set — no nested set() calls
+        set({
+          networkCache: newNetworkCache,
+          edits: {
+            ...state.edits,
+            [editId]: {
+              ...edit,
+              ...update,
+              updatedAt: new Date().toISOString(),
+            },
+          },
         });
       },
       

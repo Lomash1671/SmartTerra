@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Box, Typography, TextField, Button, Paper, Divider, IconButton, Stack } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Box, Typography, TextField, Button, Paper, Divider, IconButton, Stack, Snackbar, Alert } from '@mui/material';
 import { Close, Delete } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { NetworkElement } from '../types';
@@ -15,6 +15,7 @@ interface PropertyPanelProps {
 const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
   const { currentUser, edits, createEdit, updateEdit } = useAppStore();
   const { register, handleSubmit, reset } = useForm();
+  const [savedMsg, setSavedMsg] = useState(false);
   
   const activeEdit = Object.values(edits).find(e => 
     e.elementId === element?.id && 
@@ -34,19 +35,23 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
   const canEdit = isEditor && (!activeEdit || activeEdit.state === 'Draft' || activeEdit.state === 'Rejected');
 
   const onSave = (data: any) => {
+    // Merge form data INTO existing properties so that fields not shown in the
+    // form (e.g. startJunction, endJunction, material) are NOT silently dropped.
+    const mergedProperties = { ...element.properties, ...data };
     if (!activeEdit) {
       createEdit({
         elementId: element.id,
         state: 'Draft',
         before: element,
-        after: { ...element, properties: data }
+        after: { ...element, properties: mergedProperties }
       });
     } else {
       updateEdit(activeEdit.id, {
         state: 'Draft',
-        after: { ...element, properties: data }
+        after: { ...element, properties: mergedProperties }
       }, activeEdit.state === 'Rejected' ? { action: 'Draft', description: 'Editor revised rejected edit.' } : undefined);
     }
+    setSavedMsg(true);
   };
 
   const handleDelete = () => {
@@ -225,6 +230,17 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
           <ConversationPanel editId={activeEdit.id} />
         </Box>
       )}
+
+      <Snackbar
+        open={savedMsg}
+        autoHideDuration={2500}
+        onClose={() => setSavedMsg(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setSavedMsg(false)} sx={{ width: '100%' }}>
+          Draft saved successfully!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
