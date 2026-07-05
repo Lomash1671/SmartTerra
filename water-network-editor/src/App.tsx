@@ -1,7 +1,11 @@
-import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
+import { lazy, Suspense } from 'react';
+import { ThemeProvider, createTheme, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { useAppStore } from './store/useAppStore';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+
+// Lazy-load Dashboard so Leaflet + MUI heavy bundle is NOT downloaded
+// until the user actually logs in. Keeps the Login page instant to load.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 const theme = createTheme({
   palette: {
@@ -44,7 +48,15 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
-        {currentUser ? <Dashboard /> : <Login />}
+        {currentUser ? (
+          <Suspense fallback={
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+              <CircularProgress />
+            </Box>
+          }>
+            <Dashboard />
+          </Suspense>
+        ) : <Login />}
       </Box>
     </ThemeProvider>
   );
