@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, Popup, useMapEvents, CircleMarker } from 'react-leaflet';
-import { Box, Button, ButtonGroup, Typography, Paper } from '@mui/material';
+import { Box, Button, ButtonGroup, Typography, Paper, IconButton, Stack, Divider } from '@mui/material';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useAppStore } from '../store/useAppStore';
 import { NetworkElement } from '../types';
 import L from 'leaflet';
@@ -41,6 +42,7 @@ const MapWidget = ({ onElementSelect }: MapWidgetProps) => {
   const { networkCache, edits, currentUser, createEdit } = useAppStore();
   const [drawMode, setDrawMode] = useState<DrawMode>('none');
   const [lineStart, setLineStart] = useState<L.LatLng | null>(null);
+  const [legendExpanded, setLegendExpanded] = useState(true);
 
   // Track which element IDs come from active (non-published) edits for visual cue
   const draftElementIds = useMemo(() => {
@@ -139,23 +141,70 @@ const MapWidget = ({ onElementSelect }: MapWidgetProps) => {
         </Paper>
       )}
 
-      {/* Legend */}
-      <Paper sx={{ position: 'absolute', bottom: 30, left: 10, zIndex: 1000, p: 1, fontSize: 11 }}>
-        <Typography variant="caption" display="block" fontWeight="bold" mb={0.5}>Legend</Typography>
-        {Object.entries(ELEMENT_COLORS).map(([type, color]) => (
-          <Box key={type} display="flex" alignItems="center" gap={1} mb={0.3}>
-            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: color, border: '1px solid #fff', boxShadow: 1 }} />
-            <Typography variant="caption">{type}</Typography>
-          </Box>
-        ))}
-        <Box display="flex" alignItems="center" gap={1} mb={0.3}>
-          <Box sx={{ width: 16, height: 3, bgcolor: '#2563eb' }} />
-          <Typography variant="caption">Pipe (published)</Typography>
+      {/* Collapsible Legend */}
+      <Paper
+        sx={{
+          position: 'absolute',
+          bottom: 30,
+          left: 10,
+          zIndex: 1000,
+          p: 1.5,
+          width: 175,
+          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          borderRadius: 2,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={legendExpanded ? 1 : 0}>
+          <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.72rem', letterSpacing: 0.5 }}>
+            MAP LEGEND
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setLegendExpanded(!legendExpanded)}
+            sx={{ p: 0.2, color: 'text.secondary' }}
+          >
+            {legendExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+          </IconButton>
         </Box>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Box sx={{ width: 16, height: 3, bgcolor: '#f97316', borderTop: '2px dashed #f97316' }} />
-          <Typography variant="caption">Pipe (draft/pending)</Typography>
-        </Box>
+
+        {legendExpanded && (
+          <Stack spacing={0.8} sx={{ mt: 0.5 }}>
+            {Object.entries(ELEMENT_COLORS).map(([type, color]) => (
+              <Box key={type} display="flex" alignItems="center" gap={1.2}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    bgcolor: color,
+                    border: '2px solid #fff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                  {type}
+                </Typography>
+              </Box>
+            ))}
+            <Divider sx={{ my: 0.5 }} />
+            <Box display="flex" alignItems="center" gap={1.2}>
+              <Box sx={{ width: 16, height: 4, borderRadius: 1, bgcolor: '#2563eb' }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                Pipe (published)
+              </Typography>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1.2}>
+              <Box sx={{ width: 16, height: 4, borderRadius: 1, bgcolor: '#f97316', borderTop: '2px dashed #f97316' }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                Pipe (draft/edit)
+              </Typography>
+            </Box>
+          </Stack>
+        )}
       </Paper>
 
       <MapContainer center={[51.505, -0.09]} zoom={14} style={{ height: '100%', width: '100%' }}>

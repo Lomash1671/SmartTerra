@@ -4,40 +4,12 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "J1",
-        "type": "Junction",
-        "elevation": 100,
-        "demand": 5
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [-0.09, 51.505]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "id": "J2",
-        "type": "Junction",
-        "elevation": 105,
-        "demand": 8
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [-0.08, 51.51]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
         "id": "P1",
         "type": "Pipe",
         "diameter": 150,
         "material": "PVC",
         "roughness": 130,
-        "status": "open",
-        "startJunction": "J1",
-        "endJunction": "J2",
+        "status": "Open",
         "length": 350
       },
       "geometry": {
@@ -51,40 +23,12 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "R1",
-        "type": "Reservoir",
-        "head": 150
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [-0.1, 51.5]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "id": "V1",
-        "type": "Valve",
-        "diameter": 100,
-        "setting": 40,
-        "status": "active"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [-0.095, 51.5025]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
         "id": "P2",
         "type": "Pipe",
         "diameter": 200,
         "material": "Steel",
         "roughness": 100,
-        "status": "open",
-        "startJunction": "R1",
-        "endJunction": "J1",
+        "status": "Open",
         "length": 500
       },
       "geometry": {

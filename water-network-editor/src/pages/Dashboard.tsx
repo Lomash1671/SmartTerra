@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Box, Drawer, Toolbar, Typography, AppBar, IconButton, Divider } from '@mui/material';
 import { Logout, Menu } from '@mui/icons-material';
 import { useAppStore } from '../store/useAppStore';
@@ -8,25 +8,52 @@ import PropertyPanel from '../components/PropertyPanel';
 import TaskPanel from '../components/TaskPanel';
 import ApprovalPanel from '../components/ApprovalPanel';
 import HistoryPanel from '../components/HistoryPanel';
-import { NetworkElement } from '../types';
 
 export type ActivePanel = 'properties' | 'tasks' | 'approvals' | 'history' | null;
 
 const drawerWidth = 280;
 
 const Dashboard = () => {
-  const { currentUser, setCurrentUser } = useAppStore();
+  const { networkCache, edits, currentUser, setCurrentUser } = useAppStore();
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
-  const [selectedElement, setSelectedElement] = useState<NetworkElement | null>(null);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
 
   const handleLogout = () => {
     setCurrentUser(null);
   };
 
+  // Derive the selected element dynamically from networkCache or active edits
+  const selectedElement = useMemo(() => {
+    if (!selectedElementId) return null;
+
+    const activeEdit = Object.values(edits).find(
+      (e) =>
+        e.elementId === selectedElementId &&
+        (e.state === 'Draft' ||
+          e.state === 'Pending Approval' ||
+          e.state === 'Assigned' ||
+          e.state === 'Rejected')
+    );
+
+    if (activeEdit) {
+      return activeEdit.after || activeEdit.before || null;
+    }
+
+    return networkCache[selectedElementId] || null;
+  }, [selectedElementId, networkCache, edits]);
+
   const renderPanelInfo = () => {
     switch (activePanel) {
       case 'properties':
-        return <PropertyPanel element={selectedElement} onClose={() => setActivePanel(null)} />;
+        return (
+          <PropertyPanel
+            element={selectedElement}
+            onClose={() => {
+              setActivePanel(null);
+              setSelectedElementId(null);
+            }}
+          />
+        );
       case 'tasks':
         return <TaskPanel />;
       case 'approvals':
@@ -52,8 +79,8 @@ const Dashboard = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
             Water Network Editor
           </Typography>
-          <Typography variant="body2" sx={{ mr: 2, fontWeight: 500 }}>
-            {currentUser?.name}
+          <Typography variant="body2" sx={{ mr: 2, fontWeight: 600, color: 'text.secondary' }}>
+            {currentUser ? `${currentUser.name} (${currentUser.role})` : ''}
           </Typography>
           <IconButton onClick={handleLogout} color="error" size="small">
             <Logout />
@@ -80,7 +107,7 @@ const Dashboard = () => {
           <Box sx={{ flexGrow: 1, position: 'relative' }}>
             <MapWidget 
               onElementSelect={(elem) => {
-                setSelectedElement(elem);
+                setSelectedElementId(elem.id);
                 setActivePanel('properties');
               }} 
             />

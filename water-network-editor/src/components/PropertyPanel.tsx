@@ -1,6 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, TextField, Button, Paper, Divider, IconButton, Stack, Snackbar, Alert } from '@mui/material';
-import { Close, Delete } from '@mui/icons-material';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+  Divider,
+  IconButton,
+  Stack,
+  Snackbar,
+  Alert,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Badge,
+} from '@mui/material';
+import { Close, Delete, Forum } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { NetworkElement } from '../types';
 import { useAppStore } from '../store/useAppStore';
@@ -16,11 +32,35 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
   const { currentUser, edits, createEdit, updateEdit } = useAppStore();
   const { register, handleSubmit, reset } = useForm();
   const [savedMsg, setSavedMsg] = useState(false);
-  
-  const activeEdit = Object.values(edits).find(e => 
-    e.elementId === element?.id && 
-    (e.state === 'Draft' || e.state === 'Pending Approval' || e.state === 'Assigned' || e.state === 'Rejected')
+  const [openChat, setOpenChat] = useState(false);
+
+  const activeEdit = Object.values(edits).find(
+    (e) =>
+      e.elementId === element?.id &&
+      (e.state === 'Draft' || e.state === 'Pending Approval' || e.state === 'Assigned' || e.state === 'Rejected')
   );
+
+  const getStatusChip = (state: string) => {
+    let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
+    switch (state) {
+      case 'Draft':
+        color = 'secondary';
+        break;
+      case 'Assigned':
+        color = 'warning';
+        break;
+      case 'Pending Approval':
+        color = 'info';
+        break;
+      case 'Approved':
+        color = 'success';
+        break;
+      case 'Rejected':
+        color = 'error';
+        break;
+    }
+    return <Chip label={state} size="small" color={color} sx={{ fontWeight: 600 }} />;
+  };
 
   useEffect(() => {
     if (element) {
@@ -36,10 +76,13 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
 
   // Determine why editing is locked so we can show a clear message
   const lockReason =
-    !isEditor ? null // non-editors don't see this panel in edit mode
-    : activeEdit?.state === 'Pending Approval' ? 'This edit is pending Admin approval. You cannot modify it until approved or rejected.'
-    : activeEdit?.state === 'Assigned' ? 'This edit is assigned to an Operator for field verification. Await their submission.'
-    : null;
+    !isEditor
+      ? null // non-editors don't see this panel in edit mode
+      : activeEdit?.state === 'Pending Approval'
+      ? 'This edit is pending Admin approval. You cannot modify it until approved or rejected.'
+      : activeEdit?.state === 'Assigned'
+      ? 'This edit is assigned to an Operator for field verification. Await their submission.'
+      : null;
 
   const onSave = (data: any) => {
     if (!currentUser) return; // guard: should never happen
@@ -51,13 +94,17 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
         elementId: element.id,
         state: 'Draft',
         before: element,
-        after: { ...element, properties: mergedProperties }
+        after: { ...element, properties: mergedProperties },
       });
     } else {
-      updateEdit(activeEdit.id, {
-        state: 'Draft',
-        after: { ...element, properties: mergedProperties }
-      }, activeEdit.state === 'Rejected' ? { action: 'Draft', description: 'Editor revised rejected edit.' } : undefined);
+      updateEdit(
+        activeEdit.id,
+        {
+          state: 'Draft',
+          after: { ...element, properties: mergedProperties },
+        },
+        activeEdit.state === 'Rejected' ? { action: 'Draft', description: 'Editor revised rejected edit.' } : undefined
+      );
     }
     setSavedMsg(true);
   };
@@ -67,16 +114,16 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
       elementId: element.id,
       state: 'Draft',
       before: element,
-      after: null
+      after: null,
     });
 
     // Cascade delete any pipes connected to this node
     if (element.type !== 'Pipe') {
       const currentNetwork = { ...useAppStore.getState().networkCache };
       const currentEdits = useAppStore.getState().edits;
-      
+
       // Compute the current layout including any active drafts/pending edits
-      Object.values(currentEdits).forEach(edit => {
+      Object.values(currentEdits).forEach((edit) => {
         if (edit.state === 'Approved' || edit.state === 'Rejected') return;
         if (edit.after === null && edit.elementId) {
           delete currentNetwork[edit.elementId];
@@ -86,27 +133,31 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
       });
 
       // Find any pipes that start or end at the deleted element
-      Object.values(currentNetwork).forEach(elem => {
+      Object.values(currentNetwork).forEach((elem) => {
         if (elem.type === 'Pipe') {
           const startJ = elem.properties?.startJunction;
           const endJ = elem.properties?.endJunction;
           if (startJ === element.id || endJ === element.id) {
             // Find existing edit for the pipe to mutate or create a new deletion edit
-            const pipeEdit = Object.values(currentEdits).find(e => 
-              e.elementId === elem.id && 
-              (e.state === 'Draft' || e.state === 'Pending Approval' || e.state === 'Assigned' || e.state === 'Rejected')
+            const pipeEdit = Object.values(currentEdits).find(
+              (e) =>
+                e.elementId === elem.id &&
+                (e.state === 'Draft' ||
+                  e.state === 'Pending Approval' ||
+                  e.state === 'Assigned' ||
+                  e.state === 'Rejected')
             );
             if (pipeEdit) {
               updateEdit(pipeEdit.id, {
                 state: 'Draft',
-                after: null
+                after: null,
               });
             } else {
               createEdit({
                 elementId: elem.id,
                 state: 'Draft',
                 before: elem,
-                after: null
+                after: null,
               });
             }
           }
@@ -119,22 +170,29 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
 
   const handleSubmitApproval = () => {
     if (activeEdit) {
-      updateEdit(activeEdit.id, { state: 'Pending Approval' }, { action: 'Submitted', description: 'Editor submitted edit to Admin for approval.' });
+      updateEdit(
+        activeEdit.id,
+        { state: 'Pending Approval' },
+        { action: 'Submitted', description: 'Editor submitted edit to Admin for approval.' }
+      );
     }
   };
 
   const handleAssignTask = () => {
     if (activeEdit) {
-      updateEdit(activeEdit.id, { state: 'Assigned', assignedOperatorId: '3' }, { action: 'Assigned', description: 'Assigned field task to Operator 3.' });
+      updateEdit(
+        activeEdit.id,
+        { state: 'Assigned', assignedOperatorId: '3' },
+        { action: 'Assigned', description: 'Assigned field task to Operator 3.' }
+      );
     } else {
       createEdit({
         elementId: element.id,
         state: 'Assigned',
         assignedOperatorId: '3',
         before: element,
-        after: element
+        after: element,
       });
-      // The createEdit automatically logs 'CREATE_EDIT'. If we want custom there, we can add it later, but this works.
     }
   };
 
@@ -157,8 +215,8 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
         id: newJunctionId,
         type: 'Junction' as const,
         coordinates: newJunctionCoords,
-        properties: { elevation: 100, demand: 0 }
-      }
+        properties: { elevation: 100, demand: 0 },
+      },
     };
 
     const { deletedPipeEdit, newPipe1Edit, newPipe2Edit } = splitPipe(element, newJunctionId, newJunctionCoords);
@@ -173,31 +231,29 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'primary.main', color: 'white' }}>
         <Typography variant="h6">{element.type} Properties</Typography>
-        <IconButton size="small" onClick={onClose} sx={{ color: 'white' }}><Close /></IconButton>
+        <IconButton size="small" onClick={onClose} sx={{ color: 'white' }}>
+          <Close />
+        </IconButton>
       </Box>
 
       <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto' }}>
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
           ID: {element.id}
         </Typography>
-        
+
         {activeEdit && (
-          <Paper sx={{
-            p: 1, mb: 2,
-            bgcolor:
-              activeEdit.state === 'Pending Approval' ? 'info.light'
-              : activeEdit.state === 'Assigned' ? 'warning.light'
-              : activeEdit.state === 'Rejected' ? 'error.light'
-              : 'success.light'
-          }}>
-            <Typography variant="body2" fontWeight="bold">Active Edit: {activeEdit.state}</Typography>
-          </Paper>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Typography variant="body2" fontWeight="bold">Active Edit:</Typography>
+            {getStatusChip(activeEdit.state)}
+          </Box>
         )}
 
         {/* Show why editing is locked */}
         {lockReason && (
           <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'grey.100', border: '1px solid', borderColor: 'warning.main' }}>
-            <Typography variant="body2" color="warning.dark">🔒 {lockReason}</Typography>
+            <Typography variant="body2" color="warning.dark">
+              🔒 {lockReason}
+            </Typography>
           </Paper>
         )}
 
@@ -236,28 +292,61 @@ const PropertyPanel = ({ element, onClose }: PropertyPanelProps) => {
           {isEditor && (
             <Stack spacing={2}>
               {canEdit && (
-                <Button type="submit" variant="contained">Save Draft</Button>
+                <Button type="submit" variant="contained">
+                  Save Draft
+                </Button>
               )}
-              {(activeEdit?.state === 'Draft' || activeEdit?.state === 'Rejected') && (
-                 <Button variant="contained" color="secondary" onClick={handleSubmitApproval}>Submit for Approval</Button>
+              {activeEdit?.state === 'Draft' && (
+                <Button variant="contained" color="secondary" onClick={handleSubmitApproval}>
+                  Submit for Approval
+                </Button>
               )}
               {(canEdit || activeEdit?.state === 'Draft') && (
-                 <Button variant="outlined" color="primary" onClick={handleAssignTask}>Assign to Operator</Button>
+                <Button variant="outlined" color="primary" onClick={handleAssignTask}>
+                  Assign to Operator
+                </Button>
               )}
               {canEdit && (
-                 <Button variant="outlined" color="error" startIcon={<Delete />} onClick={handleDelete}>Delete Element</Button>
+                <Button variant="outlined" color="error" startIcon={<Delete />} onClick={handleDelete}>
+                  Delete Element
+                </Button>
               )}
               {element.type === 'Pipe' && canEdit && (
-                 <Button variant="outlined" color="warning" onClick={handleSplitPipeAction}>Simulate Pipe Split (Midpoint)</Button>
+                <Button variant="outlined" color="warning" onClick={handleSplitPipeAction}>
+                  Simulate Pipe Split (Midpoint)
+                </Button>
               )}
             </Stack>
           )}
         </form>
       </Box>
-      
+
       {activeEdit && (
-        <Box sx={{ height: 250, borderTop: 1, borderColor: 'divider' }}>
-          <ConversationPanel editId={activeEdit.id} />
+        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Button
+            variant="outlined"
+            color="info"
+            size="small"
+            startIcon={<Badge badgeContent={activeEdit.comments.length} color="error"><Forum fontSize="small" /></Badge>}
+            onClick={() => setOpenChat(true)}
+            fullWidth
+          >
+            Discussion ({activeEdit.comments.length})
+          </Button>
+
+          <Dialog open={openChat} onClose={() => setOpenChat(false)} maxWidth="sm" fullWidth>
+            <DialogTitle sx={{ bgcolor: 'info.main', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" fontWeight="bold">
+                Discussion - Edit {activeEdit.elementId}
+              </Typography>
+              <IconButton onClick={() => setOpenChat(false)} size="small" sx={{ color: 'white' }}>
+                <Close />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ p: 0, height: 400 }}>
+              <ConversationPanel editId={activeEdit.id} minHeight={400} />
+            </DialogContent>
+          </Dialog>
         </Box>
       )}
 

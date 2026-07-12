@@ -82,24 +82,41 @@ export const useAppStore = create<AppState>()(
         get().logAction('CREATE_EDIT', `Created edit for ${editData.elementId || 'new element'}`, id);
       },
       updateEdit: (editId, update, customLog) => {
-        // Use get() to read current state so we can compute the full next state
-        // atomically in a single set() call. Previously, calling set() inside
-        // set() caused the outer return to overwrite the networkCache changes.
         const state = get();
         const edit = state.edits[editId];
         if (!edit) return;
 
+        const user = state.currentUser;
         const stateChanging = !!(update.state && update.state !== edit.state);
+
+        // Build all new audit log entries inline so they can be committed in the
+        // SAME atomic set() call as the edits/networkCache changes.
+        // Previously, logAction() fired its own set({auditLogs}) BEFORE the outer
+        // set({edits, networkCache}). Because Zustand v5 uses useSyncExternalStore
+        // (which bypasses React batching), each set() triggered a synchronous
+        // re-render. Components saw intermediate renders where edit.state was still
+        // 'Pending Approval', and in some React 19 scheduling paths the final
+        // set() render was discarded as a tearing-prevention measure — so the UI
+        // never reflected the approved state.
+        const newLogEntries: AuditLog[] = [];
+        const makeLog = (action: string, description: string): AuditLog => ({
+          id: uuidv4(),
+          userId: user ? user.id : 'SYSTEM',
+          timestamp: new Date().toISOString(),
+          action,
+          description,
+          editId,
+        });
 
         if (stateChanging) {
           if (customLog) {
-            state.logAction(customLog.action, customLog.description, editId);
+            newLogEntries.push(makeLog(customLog.action, customLog.description));
           } else {
-            state.logAction('STATE_CHANGE', `State changed to ${update.state}`, editId);
+            newLogEntries.push(makeLog('STATE_CHANGE', `State changed to ${update.state}`));
           }
         }
 
-        // Compute new networkCache atomically (only when approving)
+        // Compute new networkCache (only when approving)
         let newNetworkCache = state.networkCache;
         if (update.state === 'Approved') {
           newNetworkCache = { ...state.networkCache };
@@ -108,12 +125,14 @@ export const useAppStore = create<AppState>()(
           } else if (edit.elementId && edit.after === null) {
             delete newNetworkCache[edit.elementId];
           }
-          state.logAction('PUBLISH_EDIT', 'Edit changes applied to published network.', editId);
+          newLogEntries.push(makeLog('PUBLISH_EDIT', 'Edit changes applied to published network.'));
         }
 
-        // Single atomic set — no nested set() calls
+        // Single atomic set — all slices (networkCache, edits, auditLogs) update
+        // together so React sees exactly ONE consistent state transition.
         set({
           networkCache: newNetworkCache,
+          auditLogs: [...newLogEntries, ...state.auditLogs],
           edits: {
             ...state.edits,
             [editId]: {
@@ -177,7 +196,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'water-network-storage',
-      version: 1, // Bump this when schema changes to wipe stale localStorage
+      version: 2, // Bumped to wipe stale localStorage — clears all old edits/logs
     }
   )
 );
